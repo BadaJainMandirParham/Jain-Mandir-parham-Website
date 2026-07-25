@@ -1,0 +1,194 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800&family=Cormorant+Garamond:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 40 30% 97%;
+    --foreground: 30 10% 15%;
+
+    --card: 40 25% 96%;
+    --card-foreground: 30 10% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 30 10% 15%;
+
+    --primary: 40 70% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 35 30% 90%;
+    --secondary-foreground: 30 10% 20%;
+
+    --muted: 35 20% 93%;
+    --muted-foreground: 30 8% 50%;
+
+    --accent: 40 60% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 35 25% 88%;
+    --input: 35 25% 88%;
+    --ring: 40 70% 50%;
+
+    --radius: 0.75rem;
+
+    --gold: 40 70% 50%;
+    --gold-light: 40 60% 75%;
+    --gold-dark: 38 75% 38%;
+    --sand: 35 30% 92%;
+    --sand-dark: 33 20% 80%;
+    --cream: 40 40% 97%;
+    --temple-brown: 25 30% 25%;
+
+    --glass-bg: 40 30% 97% / 0.7;
+    --glass-border: 40 60% 75% / 0.3;
+    --glow-gold: 0 0 30px hsl(40 70% 50% / 0.4);
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-glass-bg backdrop-blur-xl border border-glass-border rounded-2xl shadow-lg;
+  }
+
+  .glass-card-strong {
+    @apply backdrop-blur-2xl rounded-2xl shadow-xl;
+    background: linear-gradient(135deg, 
+      hsl(40 30% 97% / 0.85), 
+      hsl(40 60% 75% / 0.15));
+    border: 1px solid hsl(var(--glass-border));
+  }
+
+  .gold-gradient {
+    background: linear-gradient(135deg, 
+      hsl(var(--gold-dark)), 
+      hsl(var(--gold)), 
+      hsl(var(--gold-light)));
+  }
+
+  .gold-text {
+    background: linear-gradient(135deg, 
+      hsl(var(--gold-dark)), 
+      hsl(var(--gold)), 
+      hsl(var(--gold-light)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .glow-gold {
+    box-shadow: var(--glow-gold);
+  }
+
+  .glow-gold-hover:hover {
+    box-shadow: 0 0 40px hsl(40 70% 50% / 0.5);
+  }
+
+  .hover-lift {
+    @apply transition-all duration-500;
+  }
+  .hover-lift:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px hsl(40 70% 50% / 0.15);
+  }
+
+  .section-padding {
+    @apply py-20 md:py-28 px-4 md:px-8;
+  }
+
+  .scroll-reveal {
+    opacity: 0;
+    transform: translateY(40px);
+    transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .scroll-reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: hsl(var(--sand));
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--gold));
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--gold-dark));
+}
+
+/* Splash screen animations */
+@keyframes logo-glow {
+  0%, 100% { filter: drop-shadow(0 0 10px hsl(40 70% 50% / 0.4)); }
+  50% { filter: drop-shadow(0 0 30px hsl(40 70% 50% / 0.8)); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-logo-glow {
+  animation: logo-glow 2s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, 
+    hsl(var(--sand)) 25%, 
+    hsl(var(--gold-light) / 0.3) 50%, 
+    hsl(var(--sand)) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
