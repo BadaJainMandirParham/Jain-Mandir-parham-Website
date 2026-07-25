@@ -1404,16 +1404,28 @@ const syncCommitteeMembers = async () => {
 };
 
 const connectDatabase = async () => {
-  const primaryUri = process.env.MONGODB_URI || process.env.LOCAL_MONGODB_URI || "mongodb://127.0.0.1:27017/bada_jain_mandir_website";
+  const primaryUri = process.env.MONGODB_URI;
   const localUri = process.env.LOCAL_MONGODB_URI || "mongodb://127.0.0.1:27017/bada_jain_mandir_website";
+
+  if (!primaryUri && process.env.NODE_ENV === "production") {
+    throw new Error("MONGODB_URI is required in production. Set it in your Render environment variables to point to your MongoDB database.");
+  }
+
+  const uriToConnect = primaryUri || localUri;
   try {
-    await mongoose.connect(primaryUri, { serverSelectionTimeoutMS: 8000 });
-    console.log(`MongoDB connected: ${primaryUri.startsWith("mongodb+srv://") ? "Atlas" : "local"}`);
+    await mongoose.connect(uriToConnect, { serverSelectionTimeoutMS: 8000 });
+    console.log(`MongoDB connected: ${uriToConnect.startsWith("mongodb+srv://") ? "Atlas" : uriToConnect.startsWith("mongodb://127.0.0.1") ? "local" : "remote"}`);
   } catch (error) {
-    if (process.env.NODE_ENV === "production" || primaryUri === localUri) throw error;
-    console.warn(`Primary MongoDB failed, using local MongoDB: ${error.message}`);
-    await mongoose.connect(localUri, { serverSelectionTimeoutMS: 8000 });
-    console.log("MongoDB connected: local fallback");
+    if (process.env.NODE_ENV === "production") {
+      throw error;
+    }
+    if (uriToConnect !== localUri) {
+      console.warn(`Primary MongoDB failed, using local MongoDB: ${error.message}`);
+      await mongoose.connect(localUri, { serverSelectionTimeoutMS: 8000 });
+      console.log("MongoDB connected: local fallback");
+      return;
+    }
+    throw error;
   }
 };
 
