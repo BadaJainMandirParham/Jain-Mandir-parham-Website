@@ -52,6 +52,19 @@ const origins = (process.env.CORS_ORIGINS || frontendUrl)
   .map((item) => item.trim())
   .filter(Boolean);
 
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (origins.includes(origin)) return callback(null, true);
+    callback(new Error(`Origin ${origin} not allowed by CORS`));
+  },
+  methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+  exposedHeaders: ["Content-Range", "X-Total-Count"],
+  optionsSuccessStatus: 204,
+};
+
 app.use(helmet({
   crossOriginResourcePolicy: false,
   contentSecurityPolicy: {
@@ -66,7 +79,8 @@ app.use(helmet({
     },
   },
 }));
-app.use(cors({ origin: origins.length ? origins : true, credentials: true }));
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 app.use(morgan("dev"));
 app.use("/uploads", express.static(uploadDir));
 
@@ -539,14 +553,31 @@ const redactCommittee = (rows) => rows.map((row) => {
 });
 
 const mailTransport = () => {
-  const provider = process.env.EMAIL_PROVIDER || "auto";
-  if ((provider === "gmail" || provider === "auto") && process.env.GMAIL_APP_PASSWORD) {
-    return nodemailer.createTransport({
-      service: "gmail",
-      auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
-    });
+  const provider = (process.env.EMAIL_PROVIDER || "auto").toLowerCase();
+  const hasGmail = Boolean(process.env.GMAIL_APP_PASSWORD && process.env.GMAIL_USER);
+  const hasResend = Boolean(process.env.RESEND_API_KEY);
+
+  if (provider === "resend" || (provider === "auto" && hasResend)) {
+    if (hasResend) {
+      return nodemailer.createTransport({
+        host: "smtp.resend.com",
+        port: 587,
+        secure: false,
+        auth: { user: "resend", pass: process.env.RESEND_API_KEY },
+      });
+    }
   }
-  if ((provider === "resend" || provider === "auto") && process.env.RESEND_API_KEY) {
+
+  if (provider === "gmail" || provider === "auto") {
+    if (hasGmail) {
+      return nodemailer.createTransport({
+        service: "gmail",
+        auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
+      });
+    }
+  }
+
+  if (hasResend) {
     return nodemailer.createTransport({
       host: "smtp.resend.com",
       port: 587,
@@ -554,6 +585,7 @@ const mailTransport = () => {
       auth: { user: "resend", pass: process.env.RESEND_API_KEY },
     });
   }
+
   return null;
 };
 
@@ -785,6 +817,20 @@ app.patch("/api/auth/password", asyncRoute(async (req, res) => {
   user.resetPasswordToken = undefined;
   user.resetPasswordExpires = undefined;
   await user.save();
+  res.json({ ok: true });
+}));
+
+app.delete("/api/admin/users/:id", requireAdmin, asyncRoute(async (req, res) => {
+  const userId = String(req.params.id);
+  const user = await User.findById(userId);
+  if (!user) return res.status(404).json({ error: "User not found" });
+  await Promise.all([
+    User.deleteOne({ _id: userId }),
+    modelFor("profiles").deleteMany({ user_id: userId }),
+    modelFor("user_roles").deleteMany({ user_id: userId }),
+    modelFor("event_bookmarks").deleteMany({ user_id: userId }),
+    modelFor("donations").updateMany({ user_id: userId }, { $unset: { user_id: "" } }),
+  ]);
   res.json({ ok: true });
 }));
 

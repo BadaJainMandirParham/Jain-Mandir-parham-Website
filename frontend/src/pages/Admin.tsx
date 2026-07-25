@@ -9,7 +9,7 @@ import {
 import Cropper from "react-easy-crop";
 import templeLogo from "@/assets/temple-logo.png";
 import { Link, useNavigate } from "react-router-dom";
-import { supabase, backendBaseUrl } from "@/integrations/supabase/client";
+import { supabase, backendBaseUrl, apiBaseUrl } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -1461,6 +1461,32 @@ const PromotionsPanel = () => {
 const AllUsersPanel = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const { user: currentUser } = useAuth();
+
+  const deleteUser = async (userId: string) => {
+    if (!confirm("Kya aap is user ko permanently delete karna chahte hain? Yeh action vapas nahi hoga.")) return;
+    if (!userId) return;
+    setDeletingUserId(userId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const response = await fetch(`${apiBaseUrl}/admin/users/${encodeURIComponent(userId)}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: token ? `Bearer ${token}` : "",
+        },
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || payload.message || "Unable to delete user");
+      toast.success("User permanently deleted");
+      setUsers((current) => current.filter((item) => item.user_id !== userId));
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to delete user");
+    } finally {
+      setDeletingUserId(null);
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -1471,7 +1497,14 @@ const AllUsersPanel = () => {
       if (profilesRes.error) { toast.error(profilesRes.error.message); setLoading(false); return; }
       const rolesMap: Record<string, string> = {};
       (rolesRes.data ?? []).forEach((r: any) => { rolesMap[r.user_id] = r.role; });
-      const combined = (profilesRes.data ?? []).map((p: any) => ({ ...p, role: rolesMap[p.user_id] ?? "visitor" }));
+      const profileByUserId = new Map<string, any>();
+      (profilesRes.data ?? []).forEach((p: any) => {
+        const key = String(p.user_id || p.id);
+        if (!profileByUserId.has(key)) {
+          profileByUserId.set(key, { ...p, role: rolesMap[p.user_id] ?? "visitor" });
+        }
+      });
+      const combined = Array.from(profileByUserId.values());
       setUsers(combined);
       setLoading(false);
     };
@@ -1492,28 +1525,42 @@ const AllUsersPanel = () => {
                 <th className="p-3 text-left font-medium hidden sm:table-cell">Phone</th>
                 <th className="p-3 text-left font-medium hidden md:table-cell">Role</th>
                 <th className="p-3 text-left font-medium hidden lg:table-cell">Joined</th>
+              <th className="p-3 text-left font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {users.map((u, i) => (
-                <tr key={u.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                  <td className="p-3 text-muted-foreground">{i + 1}</td>
-                  <td className="p-3 font-medium flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-full gold-gradient flex items-center justify-center text-primary-foreground text-[10px] font-bold flex-shrink-0">
-                      {(u.display_name || "U")[0].toUpperCase()}
-                    </div>
-                    {u.display_name || "—"}
-                  </td>
-                  <td className="p-3 text-muted-foreground">{u.email || "—"}</td>
-                  <td className="p-3 hidden sm:table-cell">{u.phone || "—"}</td>
-                  <td className="p-3 hidden md:table-cell">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${u.role === "admin" ? "bg-red-100 text-red-700" : u.role === "committee" ? "bg-blue-100 text-blue-700" : "bg-primary/10 text-primary"}`}>
-                      {u.role}
-                    </span>
-                  </td>
-                  <td className="p-3 text-muted-foreground hidden lg:table-cell">{new Date(u.created_at).toLocaleDateString()}</td>
-                </tr>
-              ))}
+              {users.map((u, i) => {
+                const isSelf = currentUser?.id === u.user_id;
+                return (
+                  <tr key={u.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                    <td className="p-3 text-muted-foreground">{i + 1}</td>
+                    <td className="p-3 font-medium flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full gold-gradient flex items-center justify-center text-primary-foreground text-[10px] font-bold flex-shrink-0">
+                        {(u.display_name || "U")[0].toUpperCase()}
+                      </div>
+                      {u.display_name || "—"}
+                    </td>
+                    <td className="p-3 text-muted-foreground">{u.email || "—"}</td>
+                    <td className="p-3 hidden sm:table-cell">{u.phone || "—"}</td>
+                    <td className="p-3 hidden md:table-cell">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${u.role === "admin" ? "bg-red-100 text-red-700" : u.role === "committee" ? "bg-blue-100 text-blue-700" : "bg-primary/10 text-primary"}`}>
+                        {u.role}
+                      </span>
+                    </td>
+                    <td className="p-3 text-muted-foreground hidden lg:table-cell">{new Date(u.created_at).toLocaleDateString()}</td>
+                    <td className="p-3">
+                      <button
+                        disabled={isSelf || deletingUserId === u.user_id}
+                        onClick={() => deleteUser(u.user_id)}
+                        className="inline-flex items-center justify-center rounded-xl px-2.5 py-2 text-destructive transition hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-50"
+                        title={isSelf ? "Aap apna khud ka account delete nahi kar sakte" : "Delete user permanently"}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
               {users.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No users found</td></tr>}
             </tbody>
           </table>
