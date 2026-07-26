@@ -7,7 +7,6 @@ import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import multer from "multer";
-import nodemailer from "nodemailer";
 import crypto from "crypto";
 import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
@@ -552,44 +551,36 @@ const redactCommittee = (rows) => rows.map((row) => {
   return item;
 });
 
-const mailTransport = () => {
+const logoUrl = process.env.LOGO_URL || `${frontendUrl.replace(/\/$/, "")}/favicon.png`;
+
+const sendMail = async ({ to, subject, html }) => {
   const provider = (process.env.EMAIL_PROVIDER || "auto").toLowerCase();
-  const hasGmail = Boolean(process.env.GMAIL_APP_PASSWORD && process.env.GMAIL_USER);
   const hasResend = Boolean(process.env.RESEND_API_KEY);
 
   if (provider === "resend" || (provider === "auto" && hasResend)) {
-    if (hasResend) {
-      return nodemailer.createTransport({
-        host: "smtp.resend.com",
-        port: 587,
-        secure: false,
-        auth: { user: "resend", pass: process.env.RESEND_API_KEY },
-      });
-    }
-  }
-
-  if (provider === "gmail" || provider === "auto") {
-    if (hasGmail) {
-      return nodemailer.createTransport({
-        service: "gmail",
-        auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
-      });
-    }
-  }
-
-  if (hasResend) {
-    return nodemailer.createTransport({
-      host: "smtp.resend.com",
-      port: 587,
-      secure: false,
-      auth: { user: "resend", pass: process.env.RESEND_API_KEY },
+    if (!process.env.RESEND_API_KEY) throw new Error("Resend API key is not configured");
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      },
+      body: JSON.stringify({
+        from: process.env.EMAIL_FROM || "no-reply@example.com",
+        to,
+        subject,
+        html,
+      }),
     });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error?.message || payload.message || `Resend API error: ${response.status}`);
+    }
+    return payload;
   }
 
-  return null;
+  throw new Error("Mail provider is not configured for sending email");
 };
-
-const logoUrl = process.env.LOGO_URL || `${frontendUrl.replace(/\/$/, "")}/favicon.png`;
 const receiptLogoDataUri = (() => {
   try {
     const logoPath = path.join(rootDir, "..", "frontend", "src", "assets", "temple-logo.png");
@@ -758,17 +749,6 @@ const donationReceiptHtml = (donation, receiptId) => `<!DOCTYPE html><html><head
 <p><a href="${websiteUrl}" style="display:inline-block;background:#b8860b;color:#fff;text-decoration:none;padding:11px 18px;border-radius:8px;margin-top:12px;">Visit Website</a></p>
 ${authorizedSignatureHtml}
 </td></tr></table></td></tr></table></body></html>`;
-
-const sendMail = async ({ to, subject, html }) => {
-  const transport = mailTransport();
-  if (!transport) throw new Error("Mail provider is not configured");
-  return transport.sendMail({
-    from: process.env.EMAIL_FROM || process.env.GMAIL_USER,
-    to,
-    subject,
-    html,
-  });
-};
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
