@@ -2,24 +2,29 @@ import { motion, useInView } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
 import { Calendar, MapPin, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 const PAST_VISIBLE = 5;
 const PAST_SCROLL_HEIGHT = 480;
+let eventsCache: any[] | null = null;
 
 const EventsSection = () => {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: "-100px" });
-  const [events, setEvents] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [events, setEvents] = useState<any[]>(() => eventsCache ?? []);
+  const [loading, setLoading] = useState(() => eventsCache === null);
   // removed pastOpen state - always visible now
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const load = async () => {
+      if (eventsCache) return;
       const { data } = await (supabase as any).from("events").select("*").order("event_date", { ascending: false });
-      setEvents(data ?? []);
+      eventsCache = data ?? [];
+      setEvents(eventsCache);
       setLoading(false);
     };
     load();
@@ -27,9 +32,16 @@ const EventsSection = () => {
 
   const upcoming = events.filter((e) => e.status === "upcoming" || e.status === "ongoing");
   const past = events.filter((e) => e.status === "completed");
+  const openEvent = (eventId: string) => {
+    navigate(`/event/${eventId}`, { state: { from: "/#events", mandirReturnScroll: window.scrollY } });
+  };
 
   const EventCard = ({ e, isPast = false }: { e: any; isPast?: boolean }) => (
-    <div className={`glass-card${isPast ? "" : "-strong"} p-4 md:p-6 flex flex-col md:flex-row md:items-center gap-3 md:gap-4 ${isPast ? "" : "hover-lift"}`}>
+    <button
+      type="button"
+      onClick={() => openEvent(e.id)}
+      className={`w-full text-left glass-card${isPast ? "" : "-strong"} p-4 md:p-6 flex flex-col md:flex-row md:items-center gap-3 md:gap-4 ${isPast ? "" : "hover-lift"} cursor-pointer`}
+    >
       {e.image_url ? (
         <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl overflow-hidden flex-shrink-0">
           <img src={e.image_url} alt={e.title} className="w-full h-full object-cover" />
@@ -57,7 +69,7 @@ const EventsSection = () => {
           {t("events.completedLabel", "Completed")}
         </span>
       )}
-    </div>
+    </button>
   );
 
   return (

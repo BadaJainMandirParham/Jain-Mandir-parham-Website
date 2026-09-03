@@ -436,10 +436,9 @@ const saveLocalContentWrite = async (req, res) => {
   const data = fromWebsiteContentShape(table, req.body || {});
   if (isCommitteeContentTable(req.params.table)) {
     const passwordCandidate = data.password_hash || data.password;
-    if (!passwordCandidate) {
-      const phoneValue = String(data.phone || data.mobile || data.mobile_number || data.phone_number || "").trim();
-      data.password_hash = await bcrypt.hash(phoneValue || "123456", 12);
-    }
+    const phoneValue = String(data.phone || data.mobile || data.mobile_number || data.phone_number || "").trim();
+    const passwordValue = String(passwordCandidate || phoneValue || "123456").trim();
+    data.password_hash = passwordValue.startsWith("$2") ? passwordValue : await bcrypt.hash(passwordValue, 12);
     delete data.password;
   }
   data.updated_at = new Date();
@@ -500,6 +499,16 @@ const proxyAppFunction = async (name, body, headers = {}) => {
     headers: { Accept: "application/json", "Content-Type": "application/json", ...headers },
     body: JSON.stringify(body || {}),
   });
+  const payload = await response.json().catch(() => ({}));
+  return { response, payload };
+};
+
+const proxyAppGet = async (pathName, query = {}) => {
+  const url = new URL(`${appContentApiBaseUrl}/${pathName.replace(/^\/+/, "")}`);
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== null) url.searchParams.set(key, String(value));
+  }
+  const response = await fetch(url, { headers: { Accept: "application/json" } });
   const payload = await response.json().catch(() => ({}));
   return { response, payload };
 };
@@ -1135,6 +1144,11 @@ app.get('/api/donations/receipt-pdf/:id', requireAdminOrCommittee, asyncRoute(as
   res.setHeader('Content-Type', 'text/html');
   res.setHeader('Content-Disposition', `inline; filename="receipt_${receiptId}.html"`);
   res.status(200).send(html);
+}));
+
+app.get("/api/jain-calendar", asyncRoute(async (req, res) => {
+  const { response, payload } = await proxyAppGet("jain-calendar", req.query);
+  return res.status(response.status).json(payload);
 }));
 
 app.get("/api/tables/:table", asyncRoute(async (req, res) => {

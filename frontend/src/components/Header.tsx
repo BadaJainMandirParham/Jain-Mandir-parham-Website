@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, Globe, LogOut, Smartphone } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import templeLogo from "@/assets/temple-logo.png";
@@ -12,6 +12,7 @@ const Header = () => {
   const { t, i18n } = useTranslation();
   const { user, signOut, committeeMember, committeeLogout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const isLoggedIn = !!user || !!committeeMember;
 
   const navItems = [
@@ -22,6 +23,7 @@ const Header = () => {
     { label: t("nav.committee"), href: "/#committee" },
     { label: t("nav.gallery"), href: "/#gallery" },
     { label: t("nav.events"), href: "/#events" },
+    { label: t("nav.festivals", "Festivals"), href: "/#festivals" },
     { label: t("nav.liveDarshan"), href: "/live-darshan" },
     { label: t("nav.contact"), href: "/#contact" },
   ];
@@ -32,26 +34,40 @@ const Header = () => {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  useEffect(() => {
+    const closeOnDesktop = () => {
+      if (window.matchMedia("(min-width: 1024px)").matches) setMobileOpen(false);
+    };
+    window.addEventListener("resize", closeOnDesktop);
+    return () => window.removeEventListener("resize", closeOnDesktop);
+  }, []);
+
   const toggleLang = () => {
     i18n.changeLanguage(i18n.language === "en" ? "hi" : "en");
+  };
+
+  const scrollToSection = (hash: string, behavior: ScrollBehavior = "smooth") => {
+    const el = document.querySelector(hash);
+    if (!el) return;
+    const navOffset = 78;
+    const top = el.getBoundingClientRect().top + window.scrollY - navOffset;
+    window.scrollTo({ top: Math.max(0, top), behavior });
   };
 
   const handleNavClick = (href: string) => {
     setMobileOpen(false);
     if (href.startsWith("/#")) {
       const hash = href.slice(1);
-      if (window.location.pathname === "/") {
-        const el = document.querySelector(hash);
-        el?.scrollIntoView({ behavior: "smooth" });
+      if (location.pathname === "/") {
+        navigate(href);
+        window.setTimeout(() => scrollToSection(hash), 0);
       } else {
-        navigate("/");
-        setTimeout(() => {
-          const el = document.querySelector(hash);
-          el?.scrollIntoView({ behavior: "smooth" });
-        }, 300);
+        navigate(href);
+        window.setTimeout(() => scrollToSection(hash), 120);
       }
     } else {
       navigate(href);
+      if (href === "/") window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 0);
     }
   };
 
@@ -62,7 +78,7 @@ const Header = () => {
 
   return (
     <motion.header
-      className={`fixed top-0 left-0 right-0 z-40 transition-all duration-500 ${
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
         scrolled ? "glass-card-strong shadow-lg py-1.5 md:py-2" : "bg-transparent py-3 md:py-4"
       }`}
       initial={{ y: -100 }}
@@ -133,7 +149,9 @@ const Header = () => {
 
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="lg:hidden p-1.5 md:p-2 rounded-lg hover:bg-primary/5"
+            className="lg:hidden p-1.5 md:p-2 rounded-lg hover:bg-primary/5 relative z-50"
+            aria-label={mobileOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileOpen}
           >
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -143,7 +161,7 @@ const Header = () => {
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
-            className="lg:hidden glass-card-strong mt-2 mx-3 md:mx-4 rounded-2xl overflow-hidden"
+            className="lg:hidden fixed top-[58px] left-3 right-3 md:left-4 md:right-4 z-[60] max-h-[calc(100vh-76px)] overflow-y-auto rounded-2xl glass-card-strong"
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}

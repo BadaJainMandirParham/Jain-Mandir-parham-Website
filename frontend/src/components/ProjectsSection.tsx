@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 const INITIAL_COUNT = 6;
+let projectsCache: any[] | null = null;
 
 const Counter = ({ end, label, icon: Icon }: { end: number; label: string; icon: React.ElementType }) => {
   const ref = useRef(null);
@@ -37,8 +38,8 @@ const Counter = ({ end, label, icon: Icon }: { end: number; label: string; icon:
 const ProjectsSection = () => {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: "-100px" });
-  const [projects, setProjects] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [projects, setProjects] = useState<any[]>(() => projectsCache ?? []);
+  const [loading, setLoading] = useState(() => projectsCache === null);
   const [showAll, setShowAll] = useState(false);
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -51,8 +52,10 @@ const ProjectsSection = () => {
 
   useEffect(() => {
     const load = async () => {
+      if (projectsCache) return;
       const { data } = await (supabase as any).from("projects").select("*").order("created_at", { ascending: false });
-      setProjects(data ?? []);
+      projectsCache = data ?? [];
+      setProjects(projectsCache);
       setLoading(false);
     };
     load();
@@ -67,6 +70,9 @@ const ProjectsSection = () => {
 
   const displayProjects = showAll ? projects : projects.slice(0, INITIAL_COUNT);
   const hasMore = projects.length > INITIAL_COUNT;
+  const openProject = (projectId: string) => {
+    navigate(`/project/${projectId}`, { state: { from: "/#projects", mandirReturnScroll: window.scrollY } });
+  };
 
   return (
     <section id="projects" className="section-padding" ref={ref}>
@@ -90,7 +96,7 @@ const ProjectsSection = () => {
                   initial={{ opacity: 0, y: 30 }}
                   animate={inView ? { opacity: 1, y: 0 } : {}}
                   transition={{ duration: 0.5, delay: i * 0.1 }}
-                  onClick={() => navigate(`/project/${project.id}`)}
+                  onClick={() => openProject(project.id)}
                 >
                   {project.image_url && (
                     <div className="aspect-video overflow-hidden">

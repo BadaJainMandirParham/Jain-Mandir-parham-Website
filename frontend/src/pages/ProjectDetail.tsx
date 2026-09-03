@@ -1,4 +1,4 @@
-import { useParams, Link } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, Construction, Play, MapPin, Calendar, Loader2 } from "lucide-react";
@@ -9,6 +9,8 @@ const sb = supabase as any;
 
 const ProjectDetail = () => {
   const { id } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const { t } = useTranslation();
@@ -57,12 +59,21 @@ const ProjectDetail = () => {
     return match ? `https://www.youtube.com/embed/${match[1]}` : url;
   };
 
+  const goBack = () => {
+    const returnScroll = location.state?.mandirReturnScroll;
+    if (typeof returnScroll === "number") {
+      sessionStorage.setItem("mandirReturnScroll", String(returnScroll));
+    }
+    if (window.history.length > 1) navigate(-1);
+    else navigate("/#projects", { state: { mandirReturnScroll: returnScroll } });
+  };
+
   return (
     <div className="min-h-screen bg-cream">
       <div className="container mx-auto max-w-4xl px-4 py-8 md:py-16">
-        <Link to="/#projects" className="inline-flex items-center gap-2 text-primary hover:underline mb-6 text-sm font-medium">
+        <button type="button" onClick={goBack} className="inline-flex items-center gap-2 text-primary hover:underline mb-6 text-sm font-medium">
           <ArrowLeft className="w-4 h-4" /> {t("projects.backToProjects", "Back to Projects")}
-        </Link>
+        </button>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
           {/* Header */}

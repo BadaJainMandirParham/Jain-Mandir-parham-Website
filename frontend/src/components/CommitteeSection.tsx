@@ -5,12 +5,13 @@ import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
+import { mergeCommitteeMembers, permanentCommitteeMembers } from "@/data/committeeMembers";
 
 const CommitteeSection = () => {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: "-100px" });
   const { t } = useTranslation();
-  const [members, setMembers] = useState<any[]>([]);
+  const [members, setMembers] = useState<any[]>(permanentCommitteeMembers);
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -32,7 +33,7 @@ const CommitteeSection = () => {
   useEffect(() => {
     const load = async () => {
       const { data } = await (supabase as any).from("committee_public").select("*").order("display_order", { ascending: true });
-      setMembers(data ?? []);
+      setMembers(mergeCommitteeMembers(data ?? []));
       setLoading(false);
     };
     load();

@@ -4,7 +4,7 @@ type Params = Record<string, string>;
 type RouterContextValue = {
   path: string;
   params: Params;
-  navigate: (to: string | number, options?: { replace?: boolean }) => void;
+  navigate: (to: string | number, options?: { replace?: boolean; state?: unknown }) => void;
 };
 
 const RouterContext = createContext<RouterContextValue | null>(null);
@@ -15,13 +15,13 @@ export const BrowserRouter = ({ children }: { children: React.ReactNode }) => {
   const [path, setPath] = useState(currentPath());
   const [params, setParams] = useState<Params>({});
 
-  const navigate = (to: string | number, options?: { replace?: boolean }) => {
+  const navigate = (to: string | number, options?: { replace?: boolean; state?: unknown }) => {
     if (typeof to === "number") {
       window.history.go(to);
       return;
     }
-    if (options?.replace) window.history.replaceState(null, "", to);
-    else window.history.pushState(null, "", to);
+    if (options?.replace) window.history.replaceState(options?.state ?? null, "", to);
+    else window.history.pushState(options?.state ?? null, "", to);
     setPath(currentPath());
   };
 
@@ -75,10 +75,11 @@ export const Route = (_props: { path: string; element: React.ReactElement }) => 
 export const Link = ({
   to,
   replace,
+  state,
   children,
   onClick,
   ...props
-}: React.AnchorHTMLAttributes<HTMLAnchorElement> & { to: string; replace?: boolean }) => {
+}: React.AnchorHTMLAttributes<HTMLAnchorElement> & { to: string; replace?: boolean; state?: unknown }) => {
   const navigate = useNavigate();
   return (
     <a
@@ -88,7 +89,7 @@ export const Link = ({
         onClick?.(event);
         if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
         event.preventDefault();
-        navigate(to, { replace });
+        navigate(to, { replace, state });
       }}
     >
       {children}
@@ -99,6 +100,7 @@ export const Link = ({
 export type NavLinkProps = React.AnchorHTMLAttributes<HTMLAnchorElement> & {
   to: string;
   replace?: boolean;
+  state?: unknown;
   className?: string | ((props: { isActive: boolean; isPending: boolean }) => string | undefined);
 };
 
@@ -140,7 +142,7 @@ export const useLocation = () => {
     pathname: window.location.pathname,
     search: window.location.search,
     hash: window.location.hash,
-    state: null,
+    state: window.history.state,
     key: "default",
   };
 };

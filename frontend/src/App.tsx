@@ -20,6 +20,8 @@ const Admin = lazy(() => import("./pages/Admin"));
 const DevoteeDashboard = lazy(() => import("./pages/DevoteeDashboard"));
 const CommitteeDashboard = lazy(() => import("./pages/CommitteeDashboard"));
 const ProjectDetail = lazy(() => import("./pages/ProjectDetail"));
+const EventDetail = lazy(() => import("./pages/EventDetail"));
+const FestivalDetail = lazy(() => import("./pages/FestivalDetail"));
 
 const queryClient = new QueryClient();
 
@@ -49,6 +51,8 @@ const App = () => (
               <Route path="/devotee-dashboard" element={<DevoteeDashboard />} />
               <Route path="/committee-dashboard" element={<CommitteeDashboard />} />
               <Route path="/project/:id" element={<ProjectDetail />} />
+              <Route path="/event/:id" element={<EventDetail />} />
+              <Route path="/festival/:id" element={<FestivalDetail />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
