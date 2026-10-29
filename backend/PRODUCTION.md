@@ -9,6 +9,7 @@ Environment variables (important):
 - `DONATION_CURRENCY` — e.g., `INR`
 - `GMAIL_USER` / `GMAIL_APP_PASSWORD` or `RESEND_API_KEY` — mail provider credentials
 - `FRONTEND_URL` — production frontend URL
+- `PULSEIQ_API_KEY` — raw PulseIQ project API key, kept on the backend only
 - `CLOUDINARY_URL` or `CLOUDINARY_*` — optional Cloudinary config
 - `APP_CONTENT_API_BASE_URL` / `APP_CONTENT_ADMIN_TOKEN` — optional remote content API
 

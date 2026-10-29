@@ -15,6 +15,7 @@ import { fileURLToPath } from "url";
 import { getDonationRecipientEmail } from "./donationEmail.js";
 import { matchesCommitteeIdentity, verifyCommitteePassword } from "./committeeAuth.js";
 import { isCommitteeContentTable, shouldUseLocalContentWrite } from "./contentRouting.js";
+import { isPulseIQConfigured, track as trackPulseIQ } from "./pulseiq.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
@@ -22,6 +23,7 @@ const uploadDir = path.join(rootDir, "uploads");
 fs.mkdirSync(uploadDir, { recursive: true });
 
 const app = express();
+app.set("trust proxy", 1);
 const port = process.env.PORT || 5000;
 const frontendUrl = process.env.FRONTEND_URL || "http://localhost:8080";
 const backendUrl = process.env.BACKEND_URL || `http://localhost:${port}`;
@@ -225,6 +227,55 @@ const auth = async (req, _res, next) => {
 };
 
 app.use(auth);
+
+const pulseIQEventWindows = new Map();
+const pulseIQEventLimit = 60;
+const pulseIQEventWindowMs = 60_000;
+
+app.post("/api/analytics/events", asyncRoute(async (req, res) => {
+  const now = Date.now();
+  const clientIp = req.ip || req.socket.remoteAddress || "unknown";
+  const clientWindow = pulseIQEventWindows.get(clientIp);
+
+  if (clientWindow && now - clientWindow.startedAt < pulseIQEventWindowMs) {
+    if (clientWindow.count >= pulseIQEventLimit) {
+      return res.status(429).json({ error: "Too many analytics events" });
+    }
+    clientWindow.count += 1;
+  } else {
+    pulseIQEventWindows.set(clientIp, { startedAt: now, count: 1 });
+  }
+
+  if (pulseIQEventWindows.size > 5000) {
+    for (const [ip, window] of pulseIQEventWindows) {
+      if (now - window.startedAt >= pulseIQEventWindowMs) pulseIQEventWindows.delete(ip);
+    }
+  }
+
+  const { eventName, userId = null, anonymousId = "anonymous", properties = {} } = req.body || {};
+  if (typeof eventName !== "string" || !/^[a-zA-Z][a-zA-Z0-9_]{0,63}$/.test(eventName)) {
+    return res.status(400).json({ error: "Invalid event name" });
+  }
+  if (userId !== null && (typeof userId !== "string" || userId.length > 200)) {
+    return res.status(400).json({ error: "Invalid user ID" });
+  }
+  if (typeof anonymousId !== "string" || anonymousId.length > 200) {
+    return res.status(400).json({ error: "Invalid anonymous ID" });
+  }
+  if (!properties || typeof properties !== "object" || Array.isArray(properties)) {
+    return res.status(400).json({ error: "Event properties must be an object" });
+  }
+  if (Buffer.byteLength(JSON.stringify(properties), "utf8") > 4096) {
+    return res.status(413).json({ error: "Event properties are too large" });
+  }
+  if (!isPulseIQConfigured()) {
+    return res.status(503).json({ error: "PulseIQ is not configured" });
+  }
+
+  const sent = await trackPulseIQ(eventName, userId, properties, anonymousId);
+  if (!sent) return res.status(502).json({ error: "PulseIQ could not accept the event" });
+  return res.status(202).json({ ok: true });
+}));
 
 const hasCloudinaryConfig = Boolean(
   process.env.CLOUDINARY_URL ||

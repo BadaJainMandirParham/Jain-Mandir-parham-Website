@@ -4,6 +4,7 @@ import { Mail, Lock, User, Phone, Eye, EyeOff, ArrowRight, Loader2, UserCheck } 
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
+import { trackPulseIQ } from "@/lib/pulseiq";
 import { toast } from "@/hooks/use-toast";
 import templeLogo from "@/assets/temple-logo.png";
 
@@ -34,6 +35,7 @@ const Signup = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    void trackPulseIQ("signup_click");
     if (!validate()) return;
 
     // Client-side rate limiting - prevent rapid signups

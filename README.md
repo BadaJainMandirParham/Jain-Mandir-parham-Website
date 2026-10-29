@@ -38,6 +38,7 @@ Important production env:
 - `MONGODB_URI`: separate website MongoDB database
 - `APP_CONTENT_API_BASE_URL`: app backend API for shared content fetches
 - `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET`
+- `PULSEIQ_API_KEY` — raw PulseIQ project API key (backend only; never place it in frontend `VITE_` variables)
 - `CLOUDINARY_URL` or `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
 - `RESEND_API_KEY` or `GMAIL_APP_PASSWORD`
 
@@ -64,5 +65,7 @@ VITE_API_BASE_URL=https://YOUR-WEBSITE-BACKEND.onrender.com/api
 ```
 
 Keep `frontend/.env` for local development only. Use the hosting provider's environment settings for production.
+
+Set `PULSEIQ_API_KEY` in `backend/.env` locally and in the backend hosting environment. Browser events are sent through the backend so the raw key is not exposed in the frontend build.
 
 In production, Razorpay is strict: `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` must be set. Local development can create mock orders when those keys are blank.

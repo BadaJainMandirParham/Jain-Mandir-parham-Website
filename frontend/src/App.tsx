@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { AuthProvider } from "@/contexts/AuthContext";
+import PulseIQAnalytics from "@/components/PulseIQAnalytics";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -38,6 +39,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <PulseIQAnalytics />
           <Suspense fallback={<Loading />}>
             <Routes>
               <Route path="/" element={<Index />} />
